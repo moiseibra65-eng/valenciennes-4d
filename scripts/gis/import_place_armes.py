@@ -22,6 +22,8 @@ out geom;'''
 ENDPOINTS=[
  "https://overpass-api.de/api/interpreter",
  "https://overpass.kumi.systems/api/interpreter",
+ "https://overpass.private.coffee/api/interpreter",
+ "https://overpass.nchc.org.tw/api/interpreter",
 ]
 def project(lon,lat):
     return [round((lon-LON0)*111320*math.cos(math.radians(LAT0)),3),
@@ -38,17 +40,26 @@ def rings_from_element(el):
     return [r for r in outers if len(r)>=4 and r[0]==r[-1]]
 def main():
     raw=None
-    for endpoint in ENDPOINTS:
-        try:
-            req=urllib.request.Request(endpoint,
-                data=urllib.parse.urlencode({"data":QUERY}).encode(),
-                headers={"User-Agent":"Valenciennes4D/0.1 (heritage research; GitHub Actions)"})
-            with urllib.request.urlopen(req,timeout=75) as response:
-                raw=json.load(response)
-            break
-        except Exception as exc:
-            print("Overpass unavailable:",endpoint,repr(exc))
-            time.sleep(3)
+    for attempt in range(2):
+        for endpoint in ENDPOINTS:
+            try:
+                print(f"Overpass attempt {attempt+1}: {endpoint}", flush=True)
+                req=urllib.request.Request(endpoint,
+                    data=urllib.parse.urlencode({"data":QUERY}).encode(),
+                    headers={"User-Agent":"Valenciennes4D/0.1 (heritage research; GitHub Actions)",
+                             "Accept":"application/json"})
+                with urllib.request.urlopen(req,timeout=35) as response:
+                    candidate=json.load(response)
+                if not isinstance(candidate,dict) or not isinstance(candidate.get("elements"),list):
+                    raise ValueError("Overpass response has no elements array")
+                raw=candidate
+                break
+            except Exception as exc:
+                print("Overpass unavailable:",endpoint,repr(exc),flush=True)
+        if raw is not None: break
+        if attempt==0:
+            print("Retrying endpoints after 10 seconds",flush=True)
+            time.sleep(10)
     if raw is None: raise RuntimeError("No Overpass endpoint responded; keeping previous dataset unchanged.")
     geo_features=[]; local_features=[]
     for el in raw.get("elements",[]):
