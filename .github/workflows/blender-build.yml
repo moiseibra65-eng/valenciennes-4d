@@ -6,22 +6,41 @@ on:
       - 'scripts/blender/**'
       - 'data/demo/**'
       - '.github/workflows/blender-build.yml'
+
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Inspect input files
+        run: |
+          pwd
+          ls -lah scripts/blender data/demo
+          python3 -m json.tool data/demo/buildings.geojson > /dev/null
       - name: Install Blender
         run: |
           sudo apt-get update
           sudo apt-get install -y blender
           blender --version
       - name: Generate model
-        run: blender --background --factory-startup --python scripts/blender/generate.py -- data/demo/buildings.geojson exports/valenciennes_demo.glb
-      - name: Verify export
-        run: test -s exports/valenciennes_demo.glb
-      - name: Upload GLB
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p exports
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/generate.py -- data/demo/buildings.geojson exports/valenciennes_demo.glb
+      - name: Verify GLB export
+        run: |
+          test -s exports/valenciennes_demo.glb
+          python3 - <<'PY'
+          import struct
+          with open("exports/valenciennes_demo.glb", "rb") as f:
+              header=f.read(12)
+          assert len(header)==12 and header[:4]==b"glTF", "Invalid GLB header"
+          print("GLB verified:",struct.unpack("<II",header[4:]))
+          PY
+      - name: Upload GLB artifact
         uses: actions/upload-artifact@v4
         with:
           name: valenciennes-demo-glb
