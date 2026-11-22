@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"id":"DEMO_A","height_m":10},"geometry":{"type":"Polygon","coordinates":[[[0,0],[12,0],[12,8],[0,8],[0,0]]]}},{"type":"Feature","properties":{"id":"DEMO_B","height_m":15},"geometry":{"type":"Polygon","coordinates":[[[17,2],[27,2],[27,14],[17,14],[17,2]]]}}]}
