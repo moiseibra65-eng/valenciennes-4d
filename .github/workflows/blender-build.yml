@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/blender/**'
       - 'data/demo/**'
+      - 'data/valenciennes/**'
       - '.github/workflows/blender-build.yml'
 
 jobs:
@@ -31,13 +32,23 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
           mkdir -p exports
-          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/generate.py -- data/demo/buildings.geojson exports/valenciennes_demo.glb
+          if test -s data/valenciennes/place_armes_buildings_local.geojson; then
+            INPUT=data/valenciennes/place_armes_buildings_local.geojson
+            OUTPUT=exports/place_armes_buildings.glb
+          else
+            INPUT=data/demo/buildings.geojson
+            OUTPUT=exports/valenciennes_demo.glb
+          fi
+          echo "Model source: $INPUT"
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/generate.py -- "$INPUT" "$OUTPUT"
       - name: Verify GLB export
         run: |
-          test -s exports/valenciennes_demo.glb
+          ls -lh exports/*.glb
+          test -n "$(find exports -name '*.glb' -size +0c -print -quit)"
           python3 - <<'PY'
           import struct
-          with open("exports/valenciennes_demo.glb", "rb") as f:
+          from glob import glob
+          with open(glob("exports/*.glb")[0], "rb") as f:
               header=f.read(12)
           assert len(header)==12 and header[:4]==b"glTF", "Invalid GLB header"
           print("GLB verified:",struct.unpack("<II",header[4:]))
@@ -45,6 +56,6 @@ jobs:
       - name: Upload GLB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: valenciennes-demo-glb
-          path: exports/valenciennes_demo.glb
+          name: valenciennes-buildings-glb
+          path: exports/*.glb
           if-no-files-found: error
