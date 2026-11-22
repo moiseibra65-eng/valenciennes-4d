@@ -1,0 +1,29 @@
+name: Generate Blender GLB
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/blender/**'
+      - 'data/demo/**'
+      - '.github/workflows/blender-build.yml'
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --version
+      - name: Generate model
+        run: blender --background --factory-startup --python scripts/blender/generate.py -- data/demo/buildings.geojson exports/valenciennes_demo.glb
+      - name: Verify export
+        run: test -s exports/valenciennes_demo.glb
+      - name: Upload GLB
+        uses: actions/upload-artifact@v4
+        with:
+          name: valenciennes-demo-glb
+          path: exports/valenciennes_demo.glb
+          if-no-files-found: error
