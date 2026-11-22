@@ -1,0 +1,25 @@
+name: Import Place d'Armes OSM footprints
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import-osm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and validate footprints
+        run: |
+          python3 scripts/gis/import_place_armes.py
+          python3 -m json.tool data/valenciennes/place_armes_buildings_wgs84.geojson > /dev/null
+          python3 -m json.tool data/valenciennes/place_armes_buildings_local.geojson > /dev/null
+      - name: Commit sourced GeoJSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/valenciennes/*.geojson
+          if ! git diff --cached --quiet; then
+            git commit -m "Importer les empreintes OSM de la place d'Armes"
+            git push
+          fi
