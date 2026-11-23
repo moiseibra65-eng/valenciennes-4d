@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'ville.html'
       - 'scripts/blender/**'
       - 'data/demo/**'
       - 'data/valenciennes/**'
@@ -38,6 +39,14 @@ jobs:
           set -euo pipefail
           mkdir -p _site/assets
           cp index.html _site/index.html
+          cp ville.html _site/ville.html
+          if test -s data/valenciennes/city_buildings.geojson; then
+            mkdir -p _site/data/valenciennes
+            cp data/valenciennes/city_buildings.geojson _site/data/valenciennes/
+            cp data/valenciennes/commune_boundary.geojson _site/data/valenciennes/
+          else
+            echo '::warning::Citywide dataset not yet imported; ville.html will display a data warning'
+          fi
           if test -s data/valenciennes/place_armes_buildings_local.geojson; then
             INPUT=data/valenciennes/place_armes_buildings_local.geojson
           else
