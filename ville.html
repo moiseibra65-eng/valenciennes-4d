@@ -1,0 +1,21 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Valenciennes 4D — Ville immersive</title><link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"><style>
+*{box-sizing:border-box}body{margin:0;background:#101c2b;color:#eef3f9;font:14px system-ui}#map{position:fixed;inset:0}aside{position:absolute;top:16px;left:16px;width:min(350px,calc(100vw - 32px));background:#101c2bee;border:1px solid #455d75;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0006}h1{font-size:23px;color:#e8b86c;margin:0 0 4px}p{line-height:1.5;color:#c6d3e1}button{padding:10px;border-radius:8px;background:#284967;color:#fff;border:1px solid #57708a;cursor:pointer}#status{color:#ffd68a}#info{margin-top:12px;max-height:160px;overflow:auto}a{color:#f1c67d}footer{position:absolute;right:10px;bottom:24px;background:#101c2bdd;padding:8px;border-radius:7px;font-size:11px}@media(max-width:600px){aside{padding:12px;top:8px;left:8px;width:calc(100vw - 16px)}h1{font-size:19px}}
+</style></head><body><div id="map"></div><aside><h1>VALENCIENNES 4D</h1><p>Exploration 3D de la commune · bâtiments OpenStreetMap</p><p id="status">Chargement des données communales…</p><button id="reset">Survoler Valenciennes</button> <button id="pitch">Vue verticale</button><div id="info">Cliquez sur un bâtiment pour consulter ses informations.</div><p><a href="./index.html">Voir la démonstration Place d'Armes</a></p><p style="font-size:12px">Les hauteurs non documentées sont estimées. La reconstitution historique 4D n'est pas encore disponible.</p></aside><footer>© OpenStreetMap contributors · ODbL · Fond OpenFreeMap</footer>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script><script>
+const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[3.523,50.358],zoom:13.5,pitch:58,bearing:-24,antialias:true});
+map.addControl(new maplibregl.NavigationControl(),'bottom-right');const status=document.querySelector('#status'),info=document.querySelector('#info');
+document.querySelector('#reset').onclick=()=>map.flyTo({center:[3.523,50.358],zoom:13.5,pitch:58,bearing:-24,duration:1600});
+document.querySelector('#pitch').onclick=()=>map.easeTo({pitch:0,bearing:0,duration:900});
+map.on('load',async()=>{try{
+const r=await fetch('./data/valenciennes/city_buildings.geojson');if(!r.ok)throw new Error('Données communales absentes (HTTP '+r.status+')');
+const data=await r.json();if(data.type!=='FeatureCollection'||!Array.isArray(data.features)||data.features.length<500)throw new Error('Jeu de données communal incomplet');
+map.addSource('buildings',{type:'geojson',data});
+map.addLayer({id:'valenciennes-buildings',type:'fill-extrusion',source:'buildings',paint:{
+'fill-extrusion-color':['case',['==',['get','height_status'],'osm_tag_unverified'],'#e4b269','#719db5'],
+'fill-extrusion-height':['coalesce',['get','height_m'],8],
+'fill-extrusion-base':0,'fill-extrusion-opacity':0.83}});
+status.textContent=data.features.length.toLocaleString('fr-FR')+' empreintes de bâtiments chargées · source OSM';
+map.on('click','valenciennes-buildings',e=>{const p=e.features?.[0]?.properties;if(!p)return;info.replaceChildren();for(const [k,v] of [['Bâtiment',p.name||'Sans nom OSM'],['Identifiant OSM',p.osm_id],['Hauteur utilisée',p.height_m+' m'],['Qualité de hauteur',p.height_status]]){const div=document.createElement('div');div.textContent=k+' : '+v;info.append(div)}});
+map.on('mouseenter','valenciennes-buildings',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','valenciennes-buildings',()=>map.getCanvas().style.cursor='');
+}catch(e){status.textContent='Données non encore publiées : '+e.message;status.style.color='#ff9b9b';}});
+</script></body></html>
