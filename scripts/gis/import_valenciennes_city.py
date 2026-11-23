@@ -29,17 +29,18 @@ def commune():
 def overpass(s,w,n,e):
     query=f'[out:json][timeout:90];way["building"]({s:.6f},{w:.6f},{n:.6f},{e:.6f});out geom;'
     errors=[]
-    for attempt in range(3):
+    for attempt in range(2):
         for url in SERVERS:
             try:
-                r=SESSION.post(url,data={"data":query},timeout=115)
+                r=SESSION.post(url,data={"data":query},timeout=35)
                 r.raise_for_status()
                 data=r.json()
                 if not isinstance(data.get("elements"),list): raise ValueError("Missing elements")
                 return data["elements"]
             except (requests.RequestException,ValueError) as exc:
                 errors.append(str(exc))
-        time.sleep((attempt+1)*10+random.random())
+                print(f"Overpass retry: {url}: {type(exc).__name__}: {exc}", flush=True)
+        time.sleep((attempt+1)*2+random.random())
     raise RuntimeError("Tile failed: "+" | ".join(errors[-3:]))
 def height(tags):
     raw=tags.get("height","").lower().replace("m","").strip().replace(",",".")
