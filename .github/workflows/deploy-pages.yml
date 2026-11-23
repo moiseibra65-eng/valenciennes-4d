@@ -1,0 +1,65 @@
+name: Build and publish Valenciennes 4D
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'scripts/blender/**'
+      - 'data/demo/**'
+      - 'data/valenciennes/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and NumPy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy
+          blender --background --factory-startup --python-exit-code 1 --python-expr "import numpy; print(numpy.__version__)"
+      - name: Build public site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/assets
+          cp index.html _site/index.html
+          if test -s data/valenciennes/place_armes_buildings_local.geojson; then
+            INPUT=data/valenciennes/place_armes_buildings_local.geojson
+          else
+            INPUT=data/demo/buildings.geojson
+            echo "::warning::Real Place d'Armes dataset missing; publishing demo buildings"
+          fi
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/generate.py -- "$INPUT" "_site/assets/place_armes_buildings.glb"
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p=Path("_site/assets/place_armes_buildings.glb")
+          data=p.read_bytes()
+          assert len(data)>20 and data[:4]==b"glTF"
+          assert struct.unpack_from("<I",data,8)[0]==len(data)
+          assert Path("_site/index.html").is_file()
+          print("Validated:",p,len(data),"bytes")
+          PY
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
